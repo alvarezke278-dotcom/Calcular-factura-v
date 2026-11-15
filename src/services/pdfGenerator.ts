@@ -10,8 +10,7 @@ import {
 
 export function buildInvoicePdfDoc(
   invoice: InvoiceRecord,
-  business: BusinessProfile,
-  isTrialVersion: boolean
+  business: BusinessProfile
 ): jsPDF {
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -31,7 +30,7 @@ export function buildInvoicePdfDoc(
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text(business.businessName || 'Calculadora de Facturas Pro', margin, 15);
+  doc.text(business.businessName || 'Control de Tiempo', margin, 15);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9.5);
@@ -49,10 +48,10 @@ export function buildInvoicePdfDoc(
     doc.text(business.address, margin, 27.5);
   }
 
-  // Invoice Number & Date on right of header
+  // Document Number & Date on right of header
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
-  doc.text(`FACTURA ${invoice.invoiceNumber}`, pageWidth - margin, 15, { align: 'right' });
+  doc.text(`REPORTE ${invoice.invoiceNumber}`, pageWidth - margin, 15, { align: 'right' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9.5);
   const createdDate = invoice.createdAt.slice(0, 10);
@@ -61,41 +60,50 @@ export function buildInvoicePdfDoc(
   y = 44;
 
   // Client Section
+  const clientLines = [
+    invoice.clientContact ? `Celular: ${invoice.clientContact}` : '',
+    invoice.clientBuilding ? `Edificación: ${invoice.clientBuilding}` : '',
+    invoice.clientEmail ? `Correo: ${invoice.clientEmail}` : '',
+  ].filter(Boolean);
+  const clientBoxHeight = clientLines.length > 1 ? 30 : 24;
+
   doc.setFillColor(244, 246, 250);
-  doc.roundedRect(margin, y, contentWidth, 24, 2, 2, 'F');
+  doc.roundedRect(margin, y, contentWidth, clientBoxHeight, 2, 2, 'F');
   doc.setTextColor(100, 116, 139);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
-  doc.text('FACTURAR A:', margin + 4, y + 6);
+  doc.text('DATOS DEL CLIENTE:', margin + 4, y + 6);
 
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11.5);
-  doc.text(invoice.clientName || 'Cliente General', margin + 4, y + 12.5);
+  doc.text(invoice.clientName || 'Sin cliente asignado', margin + 4, y + 12.5);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9.5);
   doc.setTextColor(71, 85, 105);
-  const clientDetail = [
-    invoice.clientContact ? `Contacto: ${invoice.clientContact}` : '',
-    invoice.concept ? `Servicio: ${invoice.concept}` : '',
-  ]
-    .filter(Boolean)
-    .join('  ·  ');
-  doc.text(clientDetail || 'Servicio profesional por horas', margin + 4, y + 19);
+  if (clientLines.length > 0) {
+    const firstLine = clientLines.slice(0, 2).join('  ·  ');
+    doc.text(firstLine, margin + 4, y + 19);
+    if (clientLines.length > 2) {
+      doc.text(clientLines.slice(2).join('  ·  '), margin + 4, y + 25);
+    }
+  } else {
+    doc.text('Sin detalles de contacto registrados', margin + 4, y + 19);
+  }
 
-  y += 32;
+  y += clientBoxHeight + 8;
 
   const shiftHours = invoice.hoursPerShift || 24;
   const grossShiftInfo = formatWorkedTimeInShifts(invoice.summary.grossHours, shiftHours);
   const lostShiftInfo = formatWorkedTimeInShifts(invoice.summary.lostHours, shiftHours);
   const shiftInfo = formatWorkedTimeInShifts(invoice.summary.netHours, shiftHours);
 
-  // 1. Tiempo Principal Section
+  // Tiempo Principal Section
   doc.setTextColor(40, 65, 154);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text('1. Detalle de Tiempo Principal', margin, y);
+  doc.text('Detalle de Tiempo Principal', margin, y);
   y += 4;
 
   doc.setDrawColor(226, 232, 240);
@@ -134,11 +142,11 @@ export function buildInvoicePdfDoc(
 
   y += 28;
 
-  // 2. Horas Perdidas Section
+  // Horas Perdidas Section
   doc.setTextColor(40, 65, 154);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text('2. Descuento de Horas Perdidas', margin, y);
+  doc.text('Descuento de Horas Perdidas', margin, y);
   y += 5;
 
   if (invoice.lostEntries.length === 0) {
@@ -154,7 +162,7 @@ export function buildInvoicePdfDoc(
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(71, 85, 105);
-    doc.text('Concepto / Tramo', margin + 4, y + 5.5);
+    doc.text('Motivo / Tramo', margin + 4, y + 5.5);
     doc.text('Duración', pageWidth - margin - 4, y + 5.5, { align: 'right' });
     y += 8;
 
@@ -198,70 +206,70 @@ export function buildInvoicePdfDoc(
 
   y += 4;
 
-  // 3. Resumen de Facturación
+  // Resumen de Tiempo Trabajado
   doc.setDrawColor(30, 130, 76); // #1E824C
   doc.setLineWidth(0.5);
   doc.setFillColor(244, 251, 247);
-  const boxHeight = 42;
+  const boxHeight = 56;
   doc.roundedRect(margin, y, contentWidth, boxHeight, 2.5, 2.5, 'FD');
 
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10.5);
-  doc.text('3. Resumen de Facturación', margin + 5, y + 8);
+  doc.text('Resumen de Tiempo Trabajado', margin + 5, y + 8);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9.5);
   doc.setTextColor(51, 65, 85);
-  doc.text('Horas Netas Facturables (decimal):', margin + 5, y + 16);
+  doc.text('Horas Brutas:', margin + 5, y + 16);
   doc.setFont('helvetica', 'bold');
-  doc.text(formatHours(invoice.summary.netHours), pageWidth - margin - 5, y + 16, {
+  doc.text(formatHours(invoice.summary.grossHours), pageWidth - margin - 5, y + 16, {
     align: 'right',
   });
 
   doc.setFont('helvetica', 'normal');
-  doc.text(`Tiempo Neto (${shiftInfo.hoursPerShift}h/turno):`, margin + 5, y + 22);
+  doc.text('Horas Netas Trabajadas (decimal):', margin + 5, y + 22);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(40, 65, 154);
-  doc.text(shiftInfo.formatted, pageWidth - margin - 5, y + 22, {
+  doc.text(formatHours(invoice.summary.netHours), pageWidth - margin - 5, y + 22, {
     align: 'right',
   });
 
-  doc.setTextColor(51, 65, 85);
   doc.setFont('helvetica', 'normal');
-  doc.text('Tarifa por Hora:', margin + 5, y + 28);
+  doc.text('Tiempo Neto:', margin + 5, y + 28);
+  doc.setFont('helvetica', 'bold');
+  doc.text(shiftInfo.formatted, pageWidth - margin - 5, y + 28, {
+    align: 'right',
+  });
+
+  const shiftPriceNio = invoice.shiftPriceNio ?? (invoice.summary.hourlyRate || 0) * 24;
+  doc.setFont('helvetica', 'normal');
   doc.text(
-    formatCurrency(invoice.summary.hourlyRate, invoice.currency.symbol),
+    `Precio de Turno (${formatCurrency(shiftPriceNio, 'C$')} ÷ 24):`,
+    margin + 5,
+    y + 34
+  );
+  doc.setFont('helvetica', 'bold');
+  doc.text(
+    `${formatCurrency(invoice.summary.hourlyRate, 'C$')}/hr`,
     pageWidth - margin - 5,
-    y + 28,
+    y + 34,
     { align: 'right' }
   );
 
-  const totalLineY = y + 36.5;
+  doc.setDrawColor(187, 247, 208);
+  doc.line(margin + 5, y + 39, pageWidth - margin - 5, y + 39);
+
+  const totalLineY = y + 48;
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
+  doc.setFontSize(12);
   doc.setTextColor(22, 101, 52);
-  doc.text('TOTAL A COBRAR:', margin + 5, totalLineY);
-  doc.text(
-    formatCurrency(invoice.summary.total, invoice.currency.symbol),
-    pageWidth - margin - 5,
-    totalLineY,
-    { align: 'right' }
-  );
+  doc.text('TOTAL A PAGAR:', margin + 5, totalLineY);
+  doc.text(formatCurrency(invoice.summary.total, 'C$'), pageWidth - margin - 5, totalLineY, {
+    align: 'right',
+  });
 
   y += boxHeight + 10;
-
-  if (invoice.notes.trim()) {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(71, 85, 105);
-    doc.text('Notas adicionales:', margin, y);
-    doc.setFont('helvetica', 'normal');
-    const splitNotes = doc.splitTextToSize(invoice.notes.trim(), contentWidth);
-    doc.text(splitNotes, margin, y + 5);
-    y += 5 + splitNotes.length * 4.5;
-  }
 
   // Footer
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -270,9 +278,9 @@ export function buildInvoicePdfDoc(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
-  const footerText = isTrialVersion
-    ? 'Generado con Calculadora de Facturas Pro (Prueba gratuita de 7 días)'
-    : `Generado con Calculadora de Facturas Pro · ${business.businessName}`;
+  const footerText = business.businessName
+    ? `Generado con Calculadora de Tiempo · ${business.businessName}`
+    : 'Generado con Calculadora de Tiempo';
   doc.text(footerText, margin, pageHeight - 10);
 
   return doc;
@@ -282,15 +290,14 @@ export function getInvoiceFilename(invoice: InvoiceRecord): string {
   const safeClient = (invoice.clientName || 'Cliente')
     .replace(/[^a-zA-Z0-9_-]+/g, '_')
     .slice(0, 24);
-  return `Factura_${invoice.invoiceNumber}_${safeClient}.pdf`;
+  return `Reporte_${invoice.invoiceNumber}_${safeClient}.pdf`;
 }
 
 export function downloadInvoicePdf(
   invoice: InvoiceRecord,
-  business: BusinessProfile,
-  isTrialVersion: boolean
+  business: BusinessProfile
 ): string {
-  const doc = buildInvoicePdfDoc(invoice, business, isTrialVersion);
+  const doc = buildInvoicePdfDoc(invoice, business);
   const filename = getInvoiceFilename(invoice);
   doc.save(filename);
   return filename;
@@ -298,17 +305,20 @@ export function downloadInvoicePdf(
 
 export async function shareInvoicePdf(
   invoice: InvoiceRecord,
-  business: BusinessProfile,
-  isTrialVersion: boolean
+  business: BusinessProfile
 ): Promise<{ method: 'web_share' | 'download_fallback'; filename: string }> {
-  const doc = buildInvoicePdfDoc(invoice, business, isTrialVersion);
+  const doc = buildInvoicePdfDoc(invoice, business);
   const filename = getInvoiceFilename(invoice);
   const blob = doc.output('blob');
   const file = new File([blob], filename, { type: 'application/pdf' });
 
-  const shareText = `Factura ${invoice.invoiceNumber} - ${invoice.clientName || 'Cliente'}\nHoras netas: ${formatHours(
+  const shiftInfo = formatWorkedTimeInShifts(
+    invoice.summary.netHours,
+    invoice.hoursPerShift || 24
+  );
+  const shareText = `Reporte ${invoice.invoiceNumber} - ${invoice.clientName || 'Cliente'}\nHoras netas: ${formatHours(
     invoice.summary.netHours
-  )}\nTotal a cobrar: ${formatCurrency(invoice.summary.total, invoice.currency.symbol)}`;
+  )}\nTiempo trabajado: ${shiftInfo.formatted}`;
 
   if (
     typeof navigator !== 'undefined' &&
@@ -317,7 +327,7 @@ export async function shareInvoicePdf(
     navigator.canShare({ files: [file] })
   ) {
     await navigator.share({
-      title: `Factura ${invoice.invoiceNumber}`,
+      title: `Reporte ${invoice.invoiceNumber}`,
       text: shareText,
       files: [file],
     });

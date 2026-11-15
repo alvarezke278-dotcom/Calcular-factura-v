@@ -1,4 +1,4 @@
-export type AppTab = 'calculator' | 'history' | 'subscription' | 'settings';
+export type AppTab = 'calculator' | 'history' | 'clients' | 'settings';
 
 export type CurrencyCode = 'NIO' | 'USD' | 'EUR' | 'MXN' | 'GTQ' | 'HNL';
 
@@ -58,6 +58,8 @@ export interface InvoiceRecord {
   createdAt: string;
   clientName: string;
   clientContact: string;
+  clientBuilding?: string;
+  clientEmail?: string;
   concept: string;
   notes: string;
   currency: CurrencyOption;
@@ -65,6 +67,7 @@ export interface InvoiceRecord {
   lostEntries: LostTimeEntry[];
   summary: BillingSummary;
   hoursPerShift?: number;
+  shiftPriceNio?: number;
 }
 
 export interface BusinessProfile {
@@ -78,18 +81,11 @@ export interface BusinessProfile {
   defaultTaxPercent: number;
 }
 
-export type PlanTier = 'trial_active' | 'trial_expired' | 'pro_active';
-
-export interface SubscriptionState {
-  trialStartedAt: string;
-  pdfExportsUsed: number;
-  maxTrialExports: number;
-  trialDaysLength: number;
-  isSubscribed: boolean;
-  playProductId: string;
-  playPurchaseToken: string | null;
-  playOrderId: string | null;
-  subscribedAt: string | null;
-  renewsAt: string | null;
-  billingSource: 'google_play_twa' | 'preview_simulator' | 'none';
+export interface ClientRecord {
+  id: string;
+  name: string;
+  phone: string;
+  building: string;
+  email: string;
+  createdAt: string;
 }

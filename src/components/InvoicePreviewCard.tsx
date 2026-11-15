@@ -11,29 +11,28 @@ import {
 interface InvoicePreviewCardProps {
   invoice: InvoiceRecord;
   business: BusinessProfile;
-  isTrialVersion: boolean;
 }
 
 export const InvoicePreviewCard: React.FC<InvoicePreviewCardProps> = ({
   invoice,
   business,
-  isTrialVersion,
 }) => {
   const shiftHours = invoice.hoursPerShift || 24;
+  const shiftPriceNio = invoice.shiftPriceNio ?? (invoice.summary.hourlyRate || 0) * 24;
   const grossShift = formatWorkedTimeInShifts(invoice.summary.grossHours, shiftHours);
   const lostShift = formatWorkedTimeInShifts(invoice.summary.lostHours, shiftHours);
   const netShift = formatWorkedTimeInShifts(invoice.summary.netHours, shiftHours);
 
   return (
     <article
-      aria-label="Vista previa de factura PDF"
+      aria-label="Vista previa del documento PDF"
       className="rounded-2xl bg-white border border-slate-200 shadow-xs overflow-hidden"
     >
       {/* Document Cobalt Header */}
       <div className="bg-[#28419A] text-white px-5 py-4 flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h3 className="font-display font-bold text-base truncate">
-            {business.businessName || 'Calculadora de Facturas Pro'}
+            {business.businessName || 'Control de Tiempo'}
           </h3>
           <p className="text-xs text-white/80 mt-1 truncate">
             {[business.taxId ? `RUC: ${business.taxId}` : '', business.phone]
@@ -45,7 +44,7 @@ export const InvoicePreviewCard: React.FC<InvoicePreviewCardProps> = ({
           )}
         </div>
         <div className="text-right shrink-0">
-          <p className="text-xs font-semibold text-white/80">FACTURA</p>
+          <p className="text-xs font-semibold text-white/80">REPORTE</p>
           <p className="font-mono-num text-sm font-bold">{invoice.invoiceNumber}</p>
           <p className="text-xs text-white/75 mt-0.5 font-mono-num">
             {formatDateDisplay(invoice.createdAt.slice(0, 10))}
@@ -56,21 +55,37 @@ export const InvoicePreviewCard: React.FC<InvoicePreviewCardProps> = ({
       {/* Document Body */}
       <div className="p-5 space-y-4 text-sm">
         {/* Client Block */}
-        <div className="rounded-xl bg-[#F4F6FA] px-4 py-3">
-          <p className="text-xs font-semibold text-slate-500">Facturar a</p>
-          <p className="text-sm font-bold text-slate-900 mt-0.5">
-            {invoice.clientName || 'Cliente General'}
+        <div className="rounded-xl bg-[#F4F6FA] px-4 py-3 space-y-1">
+          <p className="text-xs font-semibold text-slate-500">Cliente</p>
+          <p className="text-sm font-bold text-slate-900">
+            {invoice.clientName || 'Sin cliente asignado'}
           </p>
-          <p className="text-xs text-slate-600 mt-0.5">
-            {[invoice.clientContact, invoice.concept].filter(Boolean).join(' · ') ||
-              'Servicio profesional por horas'}
-          </p>
+          <div className="text-xs text-slate-600 space-y-0.5">
+            {invoice.clientContact && (
+              <p>
+                <span className="font-medium text-slate-500">Celular:</span>{' '}
+                <span className="font-mono-num">{invoice.clientContact}</span>
+              </p>
+            )}
+            {invoice.clientBuilding && (
+              <p>
+                <span className="font-medium text-slate-500">Edificación:</span>{' '}
+                {invoice.clientBuilding}
+              </p>
+            )}
+            {invoice.clientEmail && (
+              <p>
+                <span className="font-medium text-slate-500">Correo:</span>{' '}
+                {invoice.clientEmail}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Time Summary */}
         <div>
           <p className="text-xs font-bold text-[#28419A] mb-1.5">
-            1. Tiempo Principal
+            Tiempo Principal
           </p>
           <div className="rounded-xl border border-slate-200 px-3.5 py-2.5 flex items-center justify-between gap-3">
             <div className="text-xs text-slate-600 space-y-0.5">
@@ -104,7 +119,7 @@ export const InvoicePreviewCard: React.FC<InvoicePreviewCardProps> = ({
         {/* Lost Hours */}
         <div>
           <p className="text-xs font-bold text-[#28419A] mb-1.5">
-            2. Descuento de Horas Perdidas
+            Descuento de Horas Perdidas
           </p>
           <div className="rounded-xl border border-slate-200 divide-y divide-slate-100">
             {invoice.lostEntries.length === 0 ? (
@@ -144,44 +159,58 @@ export const InvoicePreviewCard: React.FC<InvoicePreviewCardProps> = ({
           </div>
         </div>
 
-        {/* Totals */}
+        {/* Worked Time Totals */}
         <div className="rounded-xl border border-[#1E824C]/40 bg-emerald-50/40 px-4 py-3 space-y-1.5">
           <div className="flex items-center justify-between text-xs text-slate-700">
-            <span>Horas Netas Facturables (decimal)</span>
+            <span>Horas Brutas</span>
+            <span className="font-mono-num font-semibold text-slate-900">
+              {formatHours(invoice.summary.grossHours)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-xs text-slate-700">
+            <span>Horas Perdidas Descontadas</span>
+            <span className="font-mono-num font-semibold text-amber-800">
+              - {formatHours(invoice.summary.lostHours)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-xs text-slate-700">
+            <span>Horas Netas Trabajadas (decimal)</span>
             <span className="font-mono-num font-bold text-slate-900">
               {formatHours(invoice.summary.netHours)}
             </span>
           </div>
-          <div className="flex items-center justify-between text-xs text-slate-700">
-            <span>Tiempo Neto Trabajado (Turnos)</span>
-            <span className="font-mono-num font-semibold text-[#28419A] text-right">
+          <div className="pt-2 border-t border-emerald-200 flex items-center justify-between gap-2">
+            <span className="text-xs font-bold text-slate-900">
+              Tiempo Neto
+            </span>
+            <span className="text-sm font-extrabold font-mono-num text-[#1E824C] text-right">
               {netShift.formatted}
             </span>
           </div>
           <div className="flex items-center justify-between text-xs text-slate-700">
-            <span>Tarifa por Hora</span>
+            <span>Precio de Turno (NIO)</span>
             <span className="font-mono-num font-semibold text-slate-900">
-              {formatCurrency(invoice.summary.hourlyRate, invoice.currency.symbol)}
+              {formatCurrency(shiftPriceNio, 'C$')}
             </span>
           </div>
-          <div className="pt-2 border-t border-emerald-200 flex items-center justify-between">
-            <span className="text-sm font-bold text-slate-900">Total a Cobrar</span>
-            <span className="text-base font-extrabold font-mono-num text-[#1E824C]">
-              {formatCurrency(invoice.summary.total, invoice.currency.symbol)}
+          <div className="flex items-center justify-between text-xs text-slate-700">
+            <span>Tarifa por Hora (÷ 24)</span>
+            <span className="font-mono-num font-semibold text-slate-900">
+              {formatCurrency(invoice.summary.hourlyRate, 'C$')}/hr
+            </span>
+          </div>
+          <div className="pt-2 border-t border-emerald-200 flex items-center justify-between gap-2">
+            <span className="text-sm font-bold text-slate-900">
+              Total a pagar
+            </span>
+            <span className="text-base font-extrabold font-mono-num text-[#1E824C] text-right">
+              {formatCurrency(invoice.summary.total, 'C$')}
             </span>
           </div>
         </div>
 
-        {invoice.notes.trim() && (
-          <p className="text-xs text-slate-500">
-            <strong className="text-slate-700">Notas:</strong> {invoice.notes}
-          </p>
-        )}
-
         <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-400">
-          {isTrialVersion
-            ? 'Vista previa · Modo prueba gratuita de 7 días'
-            : `Documento oficial · ${business.businessName}`}
+          Documento · {business.businessName || 'Calculadora de Tiempo'}
         </div>
       </div>
     </article>

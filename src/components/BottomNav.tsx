@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calculator, Crown, History, Settings } from 'lucide-react';
+import { History, ReceiptText, Settings, Users } from 'lucide-react';
 import type { AppTab } from '../types/invoice';
 
 interface BottomNavProps {
@@ -9,9 +9,9 @@ interface BottomNavProps {
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onSelectTab }) => {
   const items: { id: AppTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-    { id: 'calculator', label: 'Calcular', icon: Calculator },
+    { id: 'calculator', label: 'Facturar', icon: ReceiptText },
     { id: 'history', label: 'Historial', icon: History },
-    { id: 'subscription', label: 'Plan Pro', icon: Crown },
+    { id: 'clients', label: 'Clientes', icon: Users },
     { id: 'settings', label: 'Ajustes', icon: Settings },
   ];
 

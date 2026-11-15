@@ -1,27 +1,22 @@
 import React, { useState } from 'react';
 import { Menu, Settings, X } from 'lucide-react';
 import type { AppTab } from '../types/invoice';
-import type { TrialEvaluation } from '../utils/invoiceMath';
 
 interface TopBarProps {
   activeTab: AppTab;
   onSelectTab: (tab: AppTab) => void;
-  trialEval: TrialEvaluation;
-  onQuickSharePdf: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
   activeTab,
   onSelectTab,
-  trialEval,
-  onQuickSharePdf,
 }) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const navItems: { id: AppTab; label: string }[] = [
-    { id: 'calculator', label: 'Calculadora' },
+    { id: 'calculator', label: 'Facturar' },
     { id: 'history', label: 'Historial' },
-    { id: 'subscription', label: 'Suscripción' },
+    { id: 'clients', label: 'Clientes' },
     { id: 'settings', label: 'Configuración' },
   ];
 
@@ -62,16 +57,6 @@ export const TopBar: React.FC<TopBarProps> = ({
               );
             })}
           </nav>
-
-          <div className="flex items-center shrink-0">
-            <button
-              type="button"
-              onClick={onQuickSharePdf}
-              className="rounded-lg bg-[#1E824C] hover:bg-[#196E40] px-4 py-2 text-xs font-semibold text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-xs"
-            >
-              Compartir Factura PDF
-            </button>
-          </div>
         </div>
 
         {/* Mobile Compact App Bar matching reference mockup */}
@@ -112,11 +97,7 @@ export const TopBar: React.FC<TopBarProps> = ({
               <div>
                 <p className="font-display font-bold text-base">Calculadora de Facturas</p>
                 <p className="text-xs text-white/80 mt-1">
-                  {trialEval.tier === 'pro_active'
-                    ? 'Plan Pro Mensual activo'
-                    : trialEval.tier === 'trial_active'
-                    ? `Prueba gratuita · ${trialEval.daysRemaining} días restantes`
-                    : 'Prueba de 7 días finalizada'}
+                  Control de horas y reportes PDF
                 </p>
               </div>
               <button
@@ -150,7 +131,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             </nav>
 
             <div className="p-4 border-t border-slate-200 text-xs text-slate-500">
-              Suscripción Google Play · $3.00 / mes
+              Calculadora de Facturas Pro
             </div>
           </aside>
         </div>

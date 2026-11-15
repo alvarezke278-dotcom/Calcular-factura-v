@@ -1,6 +1,6 @@
 {
   "name": "Calculadora de Facturas Pro",
-  "description": "Calculadora profesional de tiempo trabajado, horas perdidas y facturación en PDF con prueba gratuita de 7 días y suscripción mensual vía Google Play.",
+  "description": "Calculadora profesional de tiempo trabajado, turnos, horas perdidas y facturación en PDF.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

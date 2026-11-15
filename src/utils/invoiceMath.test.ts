@@ -3,17 +3,14 @@ import assert from 'node:assert/strict';
 import {
   calculateDurationHours,
   sumLostHours,
+  calculateHourlyRateFromShiftPrice,
   calculateBilling,
   formatCurrency,
   formatTime12h,
   formatDateDisplay,
   formatWorkedTimeInShifts,
-  evaluateSubscription,
-  TRIAL_DURATION_DAYS,
-  MAX_TRIAL_PDF_EXPORTS,
-  PLAY_SUBSCRIPTION_SKU,
+  computeEndDateTimeFromHours,
 } from './invoiceMath';
-import type { SubscriptionState } from '../types/invoice';
 
 test('calculateDurationHours computes mockup default 08:00 AM to 05:30 PM as 9.50 hrs', () => {
   const result = calculateDurationHours('2026-11-13', '08:00', '2026-11-13', '17:30');
@@ -113,50 +110,30 @@ test('formatWorkedTimeInShifts converts decimal net hours into Turnos, horas y m
   assert.equal(zero.formatted, '0 Turnos con 0 horas y 0 min');
 });
 
-test('evaluateSubscription tracks 7-day trial, export limits, expiration, and Pro unlock', () => {
-  const start = Date.parse('2026-11-13T12:00:00.000Z');
-  const baseSub: SubscriptionState = {
-    trialStartedAt: new Date(start).toISOString(),
-    pdfExportsUsed: 2,
-    maxTrialExports: MAX_TRIAL_PDF_EXPORTS,
-    trialDaysLength: TRIAL_DURATION_DAYS,
-    isSubscribed: false,
-    playProductId: PLAY_SUBSCRIPTION_SKU,
-    playPurchaseToken: null,
-    playOrderId: null,
-    subscribedAt: null,
-    renewsAt: null,
-    billingSource: 'none',
-  };
+test('computeEndDateTimeFromHours computes matching end date/time across day boundaries', () => {
+  assert.deepEqual(computeEndDateTimeFromHours('2026-11-13', '12:00', 1.5), {
+    endDate: '2026-11-13',
+    endTime: '13:30',
+  });
+  assert.deepEqual(computeEndDateTimeFromHours('2026-11-13', '22:00', 26.5), {
+    endDate: '2026-11-15',
+    endTime: '00:30',
+  });
+});
 
-  // Day 1: 5 days remaining? After 2 days -> 5 days remaining, 3 exports remaining
-  const day3 = start + 2 * 24 * 60 * 60 * 1000;
-  const activeEval = evaluateSubscription(baseSub, day3, 2);
-  assert.equal(activeEval.tier, 'trial_active');
-  assert.equal(activeEval.daysRemaining, 5);
-  assert.equal(activeEval.exportsRemaining, 3);
-  assert.equal(activeEval.canExportPdf, true);
+test('calculateHourlyRateFromShiftPrice divides NIO shift price by 24 and computes Total a pagar', () => {
+  // 2400 / 24 = 100/hr * 8 net hrs = 800.00
+  const rate1 = calculateHourlyRateFromShiftPrice(2400);
+  assert.equal(rate1, 100);
+  const res1 = calculateBilling({ grossHours: 9.5, lostHours: 1.5, hourlyRate: rate1, taxPercent: 0 });
+  assert.equal(res1.total, 800);
 
-  // Exhausted exports during trial
-  const exhaustedExports = evaluateSubscription({ ...baseSub, pdfExportsUsed: 5 }, day3, 2);
-  assert.equal(exhaustedExports.tier, 'trial_active');
-  assert.equal(exhaustedExports.exportsRemaining, 0);
-  assert.equal(exhaustedExports.canExportPdf, false);
+  // 1000 / 24 * 24 = 1000.00 exact without premature rounding drift
+  const rate2 = calculateHourlyRateFromShiftPrice(1000);
+  const res2 = calculateBilling({ grossHours: 24, lostHours: 0, hourlyRate: rate2, taxPercent: 0 });
+  assert.equal(res2.total, 1000);
 
-  // Expired after 8 days
-  const day8 = start + 8 * 24 * 60 * 60 * 1000;
-  const expiredEval = evaluateSubscription(baseSub, day8, 2);
-  assert.equal(expiredEval.tier, 'trial_expired');
-  assert.equal(expiredEval.daysRemaining, 0);
-  assert.equal(expiredEval.canExportPdf, false);
-
-  // Subscribed via Google Play overrides trial expiry
-  const proEval = evaluateSubscription(
-    { ...baseSub, isSubscribed: true, billingSource: 'google_play_twa' },
-    day8,
-    50
-  );
-  assert.equal(proEval.tier, 'pro_active');
-  assert.equal(proEval.canExportPdf, true);
-  assert.equal(proEval.canSaveUnlimited, true);
+  // Negative or zero stays 0
+  assert.equal(calculateHourlyRateFromShiftPrice(0), 0);
+  assert.equal(calculateHourlyRateFromShiftPrice(-500), 0);
 });

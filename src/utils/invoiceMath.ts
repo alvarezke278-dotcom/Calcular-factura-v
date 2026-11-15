@@ -2,14 +2,7 @@ import type {
   BillingInput,
   BillingSummary,
   LostTimeEntry,
-  PlanTier,
-  SubscriptionState,
 } from '../types/invoice';
-
-export const TRIAL_DURATION_DAYS = 7;
-export const MAX_TRIAL_PDF_EXPORTS = 5;
-export const PLAY_SUBSCRIPTION_SKU = 'calcula_pro_mensual';
-export const PLAY_MONTHLY_PRICE_USD = 3.0;
 
 /**
  * Computes duration in decimal hours between start and end date/time strings.
@@ -53,6 +46,11 @@ export function sumLostHours(entries: LostTimeEntry[]): number {
     return acc + val;
   }, 0);
   return Math.round(total * 10000) / 10000;
+}
+
+export function calculateHourlyRateFromShiftPrice(shiftPriceNio: number): number {
+  if (!Number.isFinite(shiftPriceNio) || shiftPriceNio <= 0) return 0;
+  return shiftPriceNio / 24;
 }
 
 export function calculateBilling(input: BillingInput): BillingSummary {
@@ -145,58 +143,24 @@ export function formatWorkedTimeInShifts(
   };
 }
 
-export interface TrialEvaluation {
-  tier: PlanTier;
-  daysElapsed: number;
-  daysRemaining: number;
-  exportsRemaining: number;
-  canExportPdf: boolean;
-  canSaveUnlimited: boolean;
-  trialEndsAt: string;
-}
-
-export function evaluateSubscription(
-  sub: SubscriptionState,
-  nowMs: number = Date.now(),
-  savedInvoiceCount: number = 0
-): TrialEvaluation {
-  const startMs = Date.parse(sub.trialStartedAt);
-  const validStartMs = Number.isNaN(startMs) ? nowMs : startMs;
-  const trialLengthDays = sub.trialDaysLength || TRIAL_DURATION_DAYS;
-  const trialEndMs = validStartMs + trialLengthDays * 24 * 60 * 60 * 1000;
-  const trialEndsAt = new Date(trialEndMs).toISOString();
-
-  if (sub.isSubscribed) {
-    return {
-      tier: 'pro_active',
-      daysElapsed: 0,
-      daysRemaining: 0,
-      exportsRemaining: Number.POSITIVE_INFINITY,
-      canExportPdf: true,
-      canSaveUnlimited: true,
-      trialEndsAt,
-    };
+export function computeEndDateTimeFromHours(
+  startDate: string,
+  startTime: string,
+  hours: number
+): { endDate: string; endTime: string } {
+  const safeHours = Number.isFinite(hours) && hours > 0 ? hours : 1;
+  const startMs = Date.parse(`${startDate}T${startTime}:00`);
+  if (Number.isNaN(startMs)) {
+    return { endDate: startDate, endTime: startTime };
   }
-
-  const msElapsed = Math.max(0, nowMs - validStartMs);
-  const daysElapsed = Math.floor(msElapsed / (24 * 60 * 60 * 1000));
-  const msRemaining = Math.max(0, trialEndMs - nowMs);
-  const daysRemaining = Math.ceil(msRemaining / (24 * 60 * 60 * 1000));
-  const maxExports = sub.maxTrialExports || MAX_TRIAL_PDF_EXPORTS;
-  const exportsRemaining = Math.max(0, maxExports - sub.pdfExportsUsed);
-
-  const isTimeValid = msRemaining > 0;
-  const tier: PlanTier = isTimeValid ? 'trial_active' : 'trial_expired';
-  const canExportPdf = isTimeValid && exportsRemaining > 0;
-  const canSaveUnlimited = isTimeValid && savedInvoiceCount < 10;
-
+  const endDateObj = new Date(startMs + Math.round(safeHours * 60) * 60 * 1000);
+  const yyyy = endDateObj.getFullYear();
+  const mm = String(endDateObj.getMonth() + 1).padStart(2, '0');
+  const dd = String(endDateObj.getDate()).padStart(2, '0');
+  const hh = String(endDateObj.getHours()).padStart(2, '0');
+  const min = String(endDateObj.getMinutes()).padStart(2, '0');
   return {
-    tier,
-    daysElapsed,
-    daysRemaining,
-    exportsRemaining,
-    canExportPdf,
-    canSaveUnlimited,
-    trialEndsAt,
+    endDate: `${yyyy}-${mm}-${dd}`,
+    endTime: `${hh}:${min}`,
   };
 }
